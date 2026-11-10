@@ -5,6 +5,7 @@ import {
   createTransaction,
   updateTransaction,
   deleteTransaction,
+  getDailyExpenses,
 } from "../models/transaction.model.js";
 
 import { validateCategory, getCategories } from "../models/category.model.js";
@@ -275,3 +276,38 @@ export async function setBudget(req, res) {
     ...p.data,
   });
 }
+
+
+export const dailyExpenses = async (req, res, next) => {
+  try {
+    const { date } = req.query;
+
+    // Validate YYYY-MM-DD
+    if (
+      typeof date !== "string" ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(date)
+    ) {
+      return res.status(400).json({
+        message: "A valid date is required (YYYY-MM-DD)",
+      });
+    }
+
+    // Validate that the date actually exists
+    const parsedDate = new Date(`${date}T00:00:00.000Z`);
+
+    if (
+      Number.isNaN(parsedDate.getTime()) ||
+      parsedDate.toISOString().slice(0, 10) !== date
+    ) {
+      return res.status(400).json({
+        message: "Invalid date",
+      });
+    }
+
+    const result = await getDailyExpenses(req.userId, date);
+
+    return res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};

@@ -2,6 +2,7 @@ import { Router } from "express";
 
 import {
   create,
+  dailyExpenses,
   list,
   remove,
   update,
@@ -15,5 +16,6 @@ router.get("/", requireAuth, list);
 router.post("/", requireAuth, create);
 router.put("/:id", requireAuth, update);
 router.delete("/:id", requireAuth, remove);
+router.get("/daily-expenses", requireAuth, dailyExpenses);
 
 export default router;
