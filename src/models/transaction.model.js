@@ -1,10 +1,14 @@
-
 import { pool } from "../config/db.js";
 
 export const getTransactions = async (
   userId,
-  { month, type, search, limit, offset }
+  { month, type, search, limit, offset },
 ) => {
+  // Validate pagination values again at model level
+  const safeLimit = Math.max(1, Math.min(100, Math.trunc(Number(limit) || 20)));
+
+  const safeOffset = Math.max(0, Math.trunc(Number(offset) || 0));
+
   const where = [
     "t.user_id = ?",
     'DATE_FORMAT(t.transaction_date, "%Y-%m") = ?',
@@ -38,8 +42,8 @@ export const getTransactions = async (
      LEFT JOIN categories c ON c.id = t.category_id
      WHERE ${whereClause}
      ORDER BY t.transaction_date DESC, t.id DESC
-     LIMIT ? OFFSET ?`,
-    [...params, limit, offset]
+     LIMIT ${safeLimit} OFFSET ${safeOffset}`,
+    params,
   );
 
   const [count] = await pool.execute(
@@ -47,7 +51,7 @@ export const getTransactions = async (
      FROM transactions t
      LEFT JOIN categories c ON c.id = t.category_id
      WHERE ${whereClause}`,
-    params
+    params,
   );
 
   return {
@@ -56,10 +60,7 @@ export const getTransactions = async (
   };
 };
 
-export const createTransaction = async (
-  userId,
-  transaction
-) => {
+export const createTransaction = async (userId, transaction) => {
   const [result] = await pool.execute(
     `INSERT INTO transactions
       (user_id, category_id, type, amount, description, transaction_date)
@@ -71,17 +72,13 @@ export const createTransaction = async (
       transaction.amount,
       transaction.description,
       transaction.date,
-    ]
+    ],
   );
 
   return result.insertId;
 };
 
-export const updateTransaction = async (
-  userId,
-  id,
-  transaction
-) => {
+export const updateTransaction = async (userId, id, transaction) => {
   const [result] = await pool.execute(
     `UPDATE transactions
      SET category_id = ?,
@@ -98,7 +95,7 @@ export const updateTransaction = async (
       transaction.date,
       id,
       userId,
-    ]
+    ],
   );
 
   return result.affectedRows;
@@ -108,7 +105,7 @@ export const deleteTransaction = async (userId, id) => {
   const [result] = await pool.execute(
     `DELETE FROM transactions
      WHERE id = ? AND user_id = ?`,
-    [id, userId]
+    [id, userId],
   );
 
   return result.affectedRows;

@@ -1,4 +1,3 @@
-
 import { z } from "zod";
 
 import {
@@ -8,10 +7,7 @@ import {
   deleteTransaction,
 } from "../models/transaction.model.js";
 
-import {
-  validateCategory,
-  getCategories,
-} from "../models/category.model.js";
+import { validateCategory, getCategories } from "../models/category.model.js";
 
 import {
   getDashboardTotals,
@@ -39,19 +35,15 @@ const budgetSchema = z.object({
 });
 
 const getMonth = (queryMonth) => {
-  return typeof queryMonth === "string" &&
-    /^\d{4}-\d{2}$/.test(queryMonth)
+  return typeof queryMonth === "string" && /^\d{4}-\d{2}$/.test(queryMonth)
     ? queryMonth
     : new Date().toISOString().slice(0, 7);
 };
 
 const formatDate = (date) => {
-  return typeof date === "string"
-    ? date
-    : date.toISOString().slice(0, 10);
+  return typeof date === "string" ? date : date.toISOString().slice(0, 10);
 };
 
-// GET /transactions
 export async function list(req, res) {
   const month = getMonth(req.query.month);
 
@@ -60,34 +52,33 @@ export async function list(req, res) {
     : "";
 
   const search =
-    typeof req.query.search === "string"
-      ? req.query.search.slice(0, 100)
-      : "";
+    typeof req.query.search === "string" ? req.query.search.slice(0, 100) : "";
 
   const page = Math.max(
     1,
-    Math.min(100000, Number(req.query.page) || 1)
+    Math.min(100000, Number.parseInt(String(req.query.page ?? "1"), 10) || 1),
   );
 
   const limit = Math.max(
     1,
-    Math.min(100, Number(req.query.limit) || 20)
+    Math.min(100, Number.parseInt(String(req.query.limit ?? "20"), 10) || 20),
   );
+
+  const offset = (page - 1) * limit;
 
   const { rows, total } = await getTransactions(req.userId, {
     month,
     type,
     search,
     limit,
-    offset: (page - 1) * limit,
+    offset,
   });
 
   return res.json({
     items: rows.map((r) => ({
       ...r,
       id: Number(r.id),
-      categoryId:
-        r.categoryId === null ? null : Number(r.categoryId),
+      categoryId: r.categoryId === null ? null : Number(r.categoryId),
       amount: Number(r.amount),
       date: formatDate(r.date),
     })),
@@ -110,7 +101,7 @@ export async function create(req, res) {
   const validCategory = await validateCategory(
     req.userId,
     p.data.categoryId,
-    p.data.type
+    p.data.type,
   );
 
   if (!validCategory) {
@@ -148,7 +139,7 @@ export async function update(req, res) {
   const validCategory = await validateCategory(
     req.userId,
     p.data.categoryId,
-    p.data.type
+    p.data.type,
   );
 
   if (!validCategory) {
@@ -157,11 +148,7 @@ export async function update(req, res) {
     });
   }
 
-  const affectedRows = await updateTransaction(
-    req.userId,
-    id,
-    p.data
-  );
+  const affectedRows = await updateTransaction(req.userId, id, p.data);
 
   if (!affectedRows) {
     return res.status(404).json({
@@ -207,7 +194,7 @@ export async function categories(req, res) {
     rows.map((r) => ({
       ...r,
       id: Number(r.id),
-    }))
+    })),
   );
 }
 
@@ -230,9 +217,7 @@ export async function dashboard(req, res) {
     expenses,
     balance: income - expenses,
     savingsRate:
-      income > 0
-        ? Math.round(((income - expenses) / income) * 100)
-        : 0,
+      income > 0 ? Math.round(((income - expenses) / income) * 100) : 0,
 
     byCategory: byCategory.map((r) => ({
       ...r,
@@ -260,7 +245,7 @@ export async function getBudgets(req, res) {
       categoryId: Number(r.categoryId),
       budget: Number(r.budget),
       spent: Number(r.spent),
-    }))
+    })),
   );
 }
 
@@ -269,20 +254,13 @@ export async function setBudget(req, res) {
   const p = budgetSchema.safeParse(req.body);
   const categoryId = Number(req.params.categoryId);
 
-  if (
-    !Number.isSafeInteger(categoryId) ||
-    categoryId < 1 ||
-    !p.success
-  ) {
+  if (!Number.isSafeInteger(categoryId) || categoryId < 1 || !p.success) {
     return res.status(400).json({
       message: "Provide a valid category, month, and positive budget",
     });
   }
 
-  const validCategory = await validateBudgetCategory(
-    req.userId,
-    categoryId
-  );
+  const validCategory = await validateBudgetCategory(req.userId, categoryId);
 
   if (!validCategory) {
     return res.status(400).json({
@@ -290,12 +268,7 @@ export async function setBudget(req, res) {
     });
   }
 
-  await upsertBudget(
-    req.userId,
-    categoryId,
-    p.data.month,
-    p.data.amount
-  );
+  await upsertBudget(req.userId, categoryId, p.data.month, p.data.amount);
 
   return res.json({
     categoryId,
